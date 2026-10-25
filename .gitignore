@@ -1,0 +1,57 @@
+# Build
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# VS Code / Cursor
+.vscode/
+.cursor/
+
+# Logs
+*.log
+logs/
+
+# Test results
+TestResults/
+coverage/
+coverage.*
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Environment/config secrets
+.env
+.env.*
+appsettings.Development.local.json
+appsettings.Local.json
+
+# Publish
+publish/
+artifacts/
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
