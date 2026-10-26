@@ -20,7 +20,7 @@ public class VehicleManagementDbContext : DbContext
             entity.HasKey(usuario => usuario.Id);
             entity.Property(usuario => usuario.Nome).IsRequired();
             entity.Property(usuario => usuario.Login).IsRequired();
-            entity.Property(usuario => usuario.Senha).IsRequired();
+            entity.Property(usuario => usuario.SenhaHash).IsRequired();
         });
 
         modelBuilder.Entity<Veiculo>(entity =>

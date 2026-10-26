@@ -12,7 +12,7 @@ public class UsuarioTests
         Assert.NotEqual(Guid.Empty, usuario.Id);
         Assert.Equal("Ana Silva", usuario.Nome);
         Assert.Equal("ana.silva", usuario.Login);
-        Assert.Equal("hash-ou-senha-temporaria", usuario.Senha);
+        Assert.Equal("hash-ou-senha-temporaria", usuario.SenhaHash);
     }
 
     [Fact]

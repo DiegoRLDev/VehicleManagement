@@ -20,7 +20,7 @@ public class UsuarioRepositoryTests
         Assert.Equal(usuario.Id, persistido.Id);
         Assert.Equal("Ana Silva", persistido.Nome);
         Assert.Equal("ana.silva", persistido.Login);
-        Assert.Equal("senha-hash", persistido.Senha);
+        Assert.Equal("senha-hash", persistido.SenhaHash);
     }
 
     [Fact]
