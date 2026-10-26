@@ -26,7 +26,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Informe o token JWT no formato: Bearer {token}"
+        Description = "Cole apenas o token JWT obtido em POST /api/auth/login (campo token). O prefixo Bearer é aplicado automaticamente."
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
