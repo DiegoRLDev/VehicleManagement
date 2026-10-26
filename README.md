@@ -85,17 +85,50 @@ dotnet user-secrets init --project src/VehicleManagement.WebApi
 dotnet user-secrets set "Jwt:SigningKey" "sua-chave-segura-com-pelo-menos-32-caracteres" --project src/VehicleManagement.WebApi
 ```
 
-## Autenticação (fluxo no Swagger)
+### Configuração do administrador (Development)
+
+Em Development, a aplicação pode criar um usuário administrador inicial de forma idempotente (não duplica se o login já existir).
+
+A seção `SeedAdmin` aceita `Login`, `Nome` e `Senha`. Login e Nome podem estar em `appsettings.Development.json`; a **senha não deve ser versionada**.
+
+Configure a senha via User Secrets ou variável de ambiente:
+
+```powershell
+dotnet user-secrets set "SeedAdmin:Senha" "sua-senha-segura" --project src/VehicleManagement.WebApi
+```
+
+```powershell
+$env:SeedAdmin__Senha = "sua-senha-segura"
+```
+
+Se `SeedAdmin:Senha` estiver ausente ou vazia, a API sobe normalmente e registra um log informativo — o administrador não é criado.
+
+## Autenticação e autorização
+
+Perfis disponíveis:
+
+| Role | Origem | Permissões |
+|------|--------|------------|
+| **User** | Cadastro público (`POST /api/usuarios`) | CRUD de veículos |
+| **Admin** | Seed em Development (quando a senha estiver configurada) | CRUD de veículos + consulta de usuários por ID |
+
+> **Observação:** por segurança, a consulta de usuários por ID é restrita ao perfil `Admin`. Usuários comuns podem realizar o CRUD de veículos, mas não consultar cadastros de usuários.
+
+O cadastro público cria exclusivamente usuários com role `User` e **não aceita** role no body. Ambos os perfis autenticados podem gerenciar veículos.
+
+### Fluxo no Swagger
 
 1. Abra `http://localhost:5095/swagger`.
-2. Execute **POST `/api/usuarios`** para cadastrar o primeiro usuário (público).
+2. Execute **POST `/api/usuarios`** para cadastrar um usuário comum (público; role `User`).
 3. Execute **POST `/api/auth/login`** com o mesmo login/senha.
 4. Copie o valor do campo `token` na resposta.
 5. Clique em **Authorize**, cole **apenas o token** (sem o prefixo `Bearer`) e confirme.
-6. Execute os endpoints de **GET `/api/usuarios/{id}`** e o CRUD de **`/api/veiculos`**.
+6. Execute o CRUD de **`/api/veiculos`** (acessível a qualquer usuário autenticado).
+7. Tente **GET `/api/usuarios/{id}`** com o token de `User` e confira o retorno **403**.
+8. Faça login com o administrador (após configurar `SeedAdmin:Senha`), autorize com o novo token e execute **GET `/api/usuarios/{id}`** (esperado **200**).
 
 Endpoints públicos: cadastro de usuário e login.  
-Endpoints protegidos: consulta de usuário e todo o CRUD de veículos.
+Endpoints protegidos: consulta de usuário (somente Admin) e todo o CRUD de veículos (qualquer autenticado).
 
 ## Exemplos JSON
 
@@ -169,7 +202,7 @@ Valores de `marca` (enum):
 | Método | Rota | Auth | Sucesso |
 |--------|------|------|---------|
 | POST | `/api/usuarios` | Não | 201 |
-| GET | `/api/usuarios/{id}` | Sim | 200 |
+| GET | `/api/usuarios/{id}` | Sim (Admin) | 200 |
 | POST | `/api/auth/login` | Não | 200 |
 | POST | `/api/veiculos` | Sim | 201 |
 | GET | `/api/veiculos` | Sim | 200 |
@@ -178,7 +211,7 @@ Valores de `marca` (enum):
 | DELETE | `/api/veiculos/{id}` | Sim | 204 |
 | GET | `/api/health` | Não | 200 |
 
-Erros comuns: **400** validação, **401** não autenticado/credenciais inválidas, **404** recurso inexistente, **409** login duplicado.
+Erros comuns: **400** validação, **401** não autenticado/credenciais inválidas, **403** autenticado sem permissão, **404** recurso inexistente, **409** login duplicado.
 
 ## Testes
 
@@ -186,7 +219,7 @@ Erros comuns: **400** validação, **401** não autenticado/credenciais inválid
 dotnet test --configuration Release
 ```
 
-Os testes cobrem Domain, repositórios InMemory, Services, FluentValidation e integração HTTP (usuários, JWT e CRUD de veículos).
+Os testes cobrem Domain, repositórios InMemory, Services, FluentValidation, seed Admin, Roles/Claims JWT e integração HTTP (usuários, autorização Admin/User e CRUD de veículos).
 
 ## Persistência
 

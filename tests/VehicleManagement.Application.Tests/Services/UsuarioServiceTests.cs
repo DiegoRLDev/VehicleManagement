@@ -2,13 +2,14 @@ using VehicleManagement.Application.Exceptions;
 using VehicleManagement.Application.Inputs;
 using VehicleManagement.Application.Services;
 using VehicleManagement.Application.Tests.Fakes;
+using VehicleManagement.Domain.Enums;
 
 namespace VehicleManagement.Application.Tests.Services;
 
 public class UsuarioServiceTests
 {
     [Fact]
-    public async Task AdicionarAsync_Cadastra_Usuario_Com_Senha_Hasheada()
+    public async Task AdicionarAsync_Cadastra_Usuario_Com_Senha_Hasheada_E_Role_User()
     {
         var repository = new FakeUsuarioRepository();
         var service = new UsuarioService(repository);
@@ -19,11 +20,30 @@ public class UsuarioServiceTests
 
         Assert.Equal("Ana Silva", resultado.Nome);
         Assert.Equal("ana.silva", resultado.Login);
+        Assert.Equal(nameof(UsuarioRole.User), resultado.Role);
         Assert.DoesNotContain("Senha", resultado.GetType().GetProperties().Select(p => p.Name));
 
         var persistido = repository.Items.Single();
+        Assert.Equal(UsuarioRole.User, persistido.Role);
         Assert.NotEqual("senha123", persistido.SenhaHash);
         Assert.True(BCrypt.Net.BCrypt.Verify("senha123", persistido.SenhaHash));
+    }
+
+    [Fact]
+    public async Task AdicionarAsync_Nao_Permite_Elevacao_De_Privilegio()
+    {
+        var repository = new FakeUsuarioRepository();
+        var service = new UsuarioService(repository);
+
+        // O contrato público (AdicionarUsuarioInput) não possui Role;
+        // o service força User independentemente de qualquer tentativa de elevação.
+        var resultado = await service.AdicionarAsync(
+            new AdicionarUsuarioInput("Ana Silva", "ana.silva", "senha123"),
+            CancellationToken.None);
+
+        Assert.Equal(nameof(UsuarioRole.User), resultado.Role);
+        Assert.Null(typeof(AdicionarUsuarioInput).GetProperty("Role"));
+        Assert.All(repository.Items, u => Assert.Equal(UsuarioRole.User, u.Role));
     }
 
     [Fact]
@@ -55,6 +75,7 @@ public class UsuarioServiceTests
         Assert.Equal(criado.Id, obtido.Id);
         Assert.Equal("Bruno", obtido.Nome);
         Assert.Equal("bruno", obtido.Login);
+        Assert.Equal(nameof(UsuarioRole.User), obtido.Role);
         Assert.Null(obtido.GetType().GetProperty("Senha"));
         Assert.Null(obtido.GetType().GetProperty("SenhaHash"));
     }

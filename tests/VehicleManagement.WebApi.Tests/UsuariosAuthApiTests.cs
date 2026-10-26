@@ -19,7 +19,7 @@ public class UsuariosAuthApiTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Post_Usuarios_Cadastra_Com_Sucesso()
+    public async Task Post_Usuarios_Cadastra_Com_Sucesso_Como_User()
     {
         var login = $"user_{Guid.NewGuid():N}"[..20];
         var response = await _client.PostAsJsonAsync("/api/usuarios", new
@@ -34,8 +34,27 @@ public class UsuariosAuthApiTests : IClassFixture<CustomWebApplicationFactory>
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         Assert.Equal("Ana Silva", body.GetProperty("nome").GetString());
         Assert.Equal(login, body.GetProperty("login").GetString());
+        Assert.Equal("User", body.GetProperty("role").GetString());
         Assert.False(body.TryGetProperty("senha", out _));
         Assert.False(body.TryGetProperty("senhaHash", out _));
+    }
+
+    [Fact]
+    public async Task Post_Usuarios_Com_Role_No_Body_Ignora_E_Mantem_User()
+    {
+        var login = $"role_{Guid.NewGuid():N}"[..20];
+        var response = await _client.PostAsJsonAsync("/api/usuarios", new
+        {
+            nome = "Tentativa Admin",
+            login,
+            senha = "senha123",
+            role = "Admin"
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        Assert.Equal("User", body.GetProperty("role").GetString());
     }
 
     [Fact]
@@ -82,9 +101,9 @@ public class UsuariosAuthApiTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Get_Usuarios_Existente_Com_Token_Retorna_200()
+    public async Task Get_Usuarios_Com_Token_User_Retorna_403()
     {
-        var login = $"ok_{Guid.NewGuid():N}"[..20];
+        var login = $"usr_{Guid.NewGuid():N}"[..20];
         var createResponse = await _client.PostAsJsonAsync("/api/usuarios", new
         {
             nome = "Bruno Costa",
@@ -100,28 +119,48 @@ public class UsuariosAuthApiTests : IClassFixture<CustomWebApplicationFactory>
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_Usuarios_Existente_Com_Token_Admin_Retorna_200()
+    {
+        var login = $"ok_{Guid.NewGuid():N}"[..20];
+        var createResponse = await _client.PostAsJsonAsync("/api/usuarios", new
+        {
+            nome = "Bruno Costa",
+            login,
+            senha = "senha123"
+        });
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var id = created.GetProperty("id").GetGuid();
+
+        var adminToken = await LoginAsync(
+            CustomWebApplicationFactory.SeedAdminLogin,
+            CustomWebApplicationFactory.SeedAdminSenha);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/usuarios/{id}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         Assert.Equal(id, body.GetProperty("id").GetGuid());
+        Assert.Equal("User", body.GetProperty("role").GetString());
         Assert.False(body.TryGetProperty("senha", out _));
         Assert.False(body.TryGetProperty("senhaHash", out _));
     }
 
     [Fact]
-    public async Task Get_Usuarios_Inexistente_Com_Token_Retorna_404()
+    public async Task Get_Usuarios_Inexistente_Com_Token_Admin_Retorna_404()
     {
-        var login = $"nf_{Guid.NewGuid():N}"[..20];
-        await _client.PostAsJsonAsync("/api/usuarios", new
-        {
-            nome = "Carla Dias",
-            login,
-            senha = "senha123"
-        });
+        var adminToken = await LoginAsync(
+            CustomWebApplicationFactory.SeedAdminLogin,
+            CustomWebApplicationFactory.SeedAdminSenha);
 
-        var token = await LoginAsync(login, "senha123");
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/usuarios/{Guid.NewGuid()}");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
         var response = await _client.SendAsync(request);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -150,6 +189,20 @@ public class UsuariosAuthApiTests : IClassFixture<CustomWebApplicationFactory>
         Assert.Equal("Bearer", body.GetProperty("tokenType").GetString());
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("token").GetString()));
         Assert.True(body.GetProperty("expiresAt").GetDateTime() > DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task Post_Auth_Login_Admin_Seed_Retorna_Token()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/login", new
+        {
+            login = CustomWebApplicationFactory.SeedAdminLogin,
+            senha = CustomWebApplicationFactory.SeedAdminSenha
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("token").GetString()));
     }
 
     [Fact]

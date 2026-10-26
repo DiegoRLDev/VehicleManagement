@@ -49,7 +49,9 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, usuario.Login),
             new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
-            new Claim(ClaimTypes.Name, usuario.Login)
+            new Claim(ClaimTypes.Name, usuario.Login),
+            // Tipo curto "role" para alinhar com RoleClaimType do JwtBearer (.NET 8).
+            new Claim("role", usuario.Role.ToString())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));

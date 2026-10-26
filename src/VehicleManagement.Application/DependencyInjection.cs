@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IUsuarioService, UsuarioService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IVeiculoService, VeiculoService>();
+        services.AddScoped<IAdminSeedService, AdminSeedService>();
 
         return services;
     }

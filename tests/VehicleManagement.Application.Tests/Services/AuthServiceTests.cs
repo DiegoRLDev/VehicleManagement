@@ -1,9 +1,12 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using VehicleManagement.Application.Exceptions;
 using VehicleManagement.Application.Inputs;
 using VehicleManagement.Application.Services;
 using VehicleManagement.Application.Tests.Fakes;
+using VehicleManagement.Domain.Entities;
+using VehicleManagement.Domain.Enums;
 using JwtOptions = VehicleManagement.Application.Options.JwtOptions;
 
 namespace VehicleManagement.Application.Tests.Services;
@@ -24,7 +27,7 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task LoginAsync_Com_Credenciais_Validas_Retorna_Jwt()
+    public async Task LoginAsync_Com_Credenciais_Validas_Retorna_Jwt_Com_Role_User()
     {
         var repository = new FakeUsuarioRepository();
         var usuarioService = new UsuarioService(repository);
@@ -47,6 +50,23 @@ public class AuthServiceTests
         Assert.Equal("ana.silva", token.Claims.First(c => c.Type == JwtRegisteredClaimNames.UniqueName).Value);
         Assert.Contains(token.Claims, c => c.Type == JwtRegisteredClaimNames.Sub);
         Assert.True(token.ValidTo > DateTime.UtcNow);
+        Assert.Contains(token.Claims, c => IsRoleClaim(c, "User"));
+    }
+
+    [Fact]
+    public async Task LoginAsync_Com_Administrador_Retorna_Jwt_Com_Role_Admin()
+    {
+        var repository = new FakeUsuarioRepository();
+        var admin = new Usuario("Administrador", "admin", BCrypt.Net.BCrypt.HashPassword("senhaAdmin"), UsuarioRole.Admin);
+        await repository.AdicionarAsync(admin, CancellationToken.None);
+
+        var authService = CreateService(repository);
+        var resultado = await authService.LoginAsync(
+            new LoginInput("admin", "senhaAdmin"),
+            CancellationToken.None);
+
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(resultado.Token);
+        Assert.Contains(token.Claims, c => IsRoleClaim(c, "Admin"));
     }
 
     [Fact]
@@ -93,4 +113,8 @@ public class AuthServiceTests
         Assert.True(resultado.ExpiresAt > before.AddMinutes(4));
         Assert.True(resultado.ExpiresAt < before.AddMinutes(6));
     }
+
+    private static bool IsRoleClaim(Claim claim, string role) =>
+        claim.Value == role &&
+        (claim.Type == ClaimTypes.Role || claim.Type == "role" || claim.Type.EndsWith("/role", StringComparison.Ordinal));
 }

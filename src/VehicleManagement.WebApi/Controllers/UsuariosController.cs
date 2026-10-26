@@ -36,9 +36,10 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(UsuarioDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UsuarioDto>> ObterPorId(Guid id, CancellationToken cancellationToken)
     {

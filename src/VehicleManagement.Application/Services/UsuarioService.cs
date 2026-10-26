@@ -3,6 +3,7 @@ using VehicleManagement.Application.Exceptions;
 using VehicleManagement.Application.Inputs;
 using VehicleManagement.Application.Mappings;
 using VehicleManagement.Domain.Entities;
+using VehicleManagement.Domain.Enums;
 using VehicleManagement.Domain.Interfaces;
 
 namespace VehicleManagement.Application.Services;
@@ -24,7 +25,8 @@ public class UsuarioService : IUsuarioService
         }
 
         var senhaHash = BCrypt.Net.BCrypt.HashPassword(input.Senha);
-        var usuario = new Usuario(input.Nome, input.Login, senhaHash);
+        // Cadastro público sempre cria User; role não é aceita no contrato de entrada.
+        var usuario = new Usuario(input.Nome, input.Login, senhaHash, UsuarioRole.User);
 
         await _usuarioRepository.AdicionarAsync(usuario, cancellationToken);
 

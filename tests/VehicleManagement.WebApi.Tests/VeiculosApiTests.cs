@@ -164,6 +164,23 @@ public class VeiculosApiTests : IClassFixture<CustomWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Crud_Acessivel_Com_Token_Admin()
+    {
+        var adminToken = await LoginAsync(
+            CustomWebApplicationFactory.SeedAdminLogin,
+            CustomWebApplicationFactory.SeedAdminSenha);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/veiculos")
+        {
+            Content = JsonContent.Create(CreatePayload())
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
     private static object CreatePayload() => new
     {
         descricao = "Corolla XEi",
@@ -184,11 +201,12 @@ public class VeiculosApiTests : IClassFixture<CustomWebApplicationFactory>
         });
         createUser.EnsureSuccessStatusCode();
 
-        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
-        {
-            login,
-            senha = "senha123"
-        });
+        return await LoginAsync(login, "senha123");
+    }
+
+    private async Task<string> LoginAsync(string login, string senha)
+    {
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new { login, senha });
         loginResponse.EnsureSuccessStatusCode();
 
         var body = await loginResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);

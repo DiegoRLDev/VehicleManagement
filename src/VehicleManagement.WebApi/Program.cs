@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using VehicleManagement.Application;
 using VehicleManagement.Application.Options;
+using VehicleManagement.Application.Services;
 using VehicleManagement.Infra;
 using VehicleManagement.WebApi.ExceptionHandlers;
 
@@ -46,6 +47,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<SeedAdminOptions>(builder.Configuration.GetSection(SeedAdminOptions.SectionName));
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Seção Jwt não configurada.");
@@ -61,6 +63,7 @@ builder.Services
     .AddJwtBearer(options =>
     {
         options.RequireHttpsMetadata = false;
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -70,7 +73,9 @@ builder.Services
             ValidIssuer = jwtOptions.Issuer,
             ValidAudience = jwtOptions.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
-            ClockSkew = TimeSpan.FromMinutes(1)
+            ClockSkew = TimeSpan.FromMinutes(1),
+            NameClaimType = "unique_name",
+            RoleClaimType = "role"
         };
     });
 
@@ -91,6 +96,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    using var scope = app.Services.CreateScope();
+    var adminSeedService = scope.ServiceProvider.GetRequiredService<IAdminSeedService>();
+    await adminSeedService.SeedAsync();
 }
 
 app.UseExceptionHandler();

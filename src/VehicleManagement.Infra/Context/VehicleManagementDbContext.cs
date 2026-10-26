@@ -21,6 +21,7 @@ public class VehicleManagementDbContext : DbContext
             entity.Property(usuario => usuario.Nome).IsRequired();
             entity.Property(usuario => usuario.Login).IsRequired();
             entity.Property(usuario => usuario.SenhaHash).IsRequired();
+            entity.Property(usuario => usuario.Role).IsRequired();
         });
 
         modelBuilder.Entity<Veiculo>(entity =>

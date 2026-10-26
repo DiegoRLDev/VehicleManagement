@@ -1,4 +1,5 @@
 using VehicleManagement.Domain.Entities;
+using VehicleManagement.Domain.Enums;
 using VehicleManagement.Infra.Repositories;
 
 namespace VehicleManagement.Application.Tests.Infra;
@@ -6,11 +7,11 @@ namespace VehicleManagement.Application.Tests.Infra;
 public class UsuarioRepositoryTests
 {
     [Fact]
-    public async Task AdicionarAsync_Persiste_Usuario()
+    public async Task AdicionarAsync_Persiste_Usuario_Com_Role()
     {
         await using var context = InMemoryDbContextFactory.Create();
         var repository = new UsuarioRepository(context);
-        var usuario = new Usuario("Ana Silva", "ana.silva", "senha-hash");
+        var usuario = new Usuario("Ana Silva", "ana.silva", "senha-hash", UsuarioRole.User);
 
         await repository.AdicionarAsync(usuario, CancellationToken.None);
 
@@ -21,6 +22,22 @@ public class UsuarioRepositoryTests
         Assert.Equal("Ana Silva", persistido.Nome);
         Assert.Equal("ana.silva", persistido.Login);
         Assert.Equal("senha-hash", persistido.SenhaHash);
+        Assert.Equal(UsuarioRole.User, persistido.Role);
+    }
+
+    [Fact]
+    public async Task AdicionarAsync_Persiste_Role_Admin()
+    {
+        await using var context = InMemoryDbContextFactory.Create();
+        var repository = new UsuarioRepository(context);
+        var usuario = new Usuario("Administrador", "admin", "hash", UsuarioRole.Admin);
+
+        await repository.AdicionarAsync(usuario, CancellationToken.None);
+
+        var persistido = await repository.ObterPorIdAsync(usuario.Id, CancellationToken.None);
+
+        Assert.NotNull(persistido);
+        Assert.Equal(UsuarioRole.Admin, persistido.Role);
     }
 
     [Fact]
@@ -28,7 +45,7 @@ public class UsuarioRepositoryTests
     {
         await using var context = InMemoryDbContextFactory.Create();
         var repository = new UsuarioRepository(context);
-        var usuario = new Usuario("Bruno", "bruno", "hash");
+        var usuario = new Usuario("Bruno", "bruno", "hash", UsuarioRole.User);
         await repository.AdicionarAsync(usuario, CancellationToken.None);
 
         var obtido = await repository.ObterPorIdAsync(usuario.Id, CancellationToken.None);
@@ -53,7 +70,7 @@ public class UsuarioRepositoryTests
     {
         await using var context = InMemoryDbContextFactory.Create();
         var repository = new UsuarioRepository(context);
-        var usuario = new Usuario("Carla", "carla.login", "hash");
+        var usuario = new Usuario("Carla", "carla.login", "hash", UsuarioRole.User);
         await repository.AdicionarAsync(usuario, CancellationToken.None);
 
         var obtido = await repository.ObterPorLoginAsync("carla.login", CancellationToken.None);
@@ -79,7 +96,7 @@ public class UsuarioRepositoryTests
     {
         await using var context = InMemoryDbContextFactory.Create();
         var repository = new UsuarioRepository(context);
-        await repository.AdicionarAsync(new Usuario("Diego", "diego", "hash"), CancellationToken.None);
+        await repository.AdicionarAsync(new Usuario("Diego", "diego", "hash", UsuarioRole.User), CancellationToken.None);
 
         var existe = await repository.ExisteLoginAsync("diego", CancellationToken.None);
 
