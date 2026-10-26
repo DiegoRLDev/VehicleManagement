@@ -35,6 +35,16 @@ Fluxo: `Controller → MediatR → Handler → Service → Repository → DbCont
 | Input | Application | Contrato interno dos Services |
 | DTO | Application | Resposta segura (sem dados sensíveis) |
 
+## Decisões técnicas
+
+**Tratamento de exceções:** a API utiliza o middleware nativo do ASP.NET Core 8 com `IExceptionHandler` e `ProblemDetails`, centralizando o tratamento de erros e padronizando as respostas HTTP.
+
+**MediatR e Services:** os handlers coordenam os casos de uso, enquanto os services concentram as regras de aplicação, mantendo os controllers enxutos.
+
+**Autenticação e autorização:** JWT com claims e autorização declarativa por meio de `[Authorize]` e `[Authorize(Roles = "Admin")]`.
+
+**Persistência:** Entity Framework Core InMemory, permitindo executar a aplicação sem configurar um banco de dados externo.
+
 ## Pré-requisitos
 
 - .NET 8 SDK (ou SDK mais recente compatível com `net8.0`)
@@ -78,10 +88,9 @@ A seção `Jwt` exige `Issuer`, `Audience`, `SigningKey` e `ExpirationMinutes`.
 - `appsettings.Development.json`: chave **somente para desenvolvimento local**.
 - Outros ambientes: User Secrets ou variável de ambiente `Jwt__SigningKey`.
 
-Exemplo com User Secrets (na pasta da WebApi):
+Exemplo com User Secrets:
 
 ```powershell
-dotnet user-secrets init --project src/VehicleManagement.WebApi
 dotnet user-secrets set "Jwt:SigningKey" "sua-chave-segura-com-pelo-menos-32-caracteres" --project src/VehicleManagement.WebApi
 ```
 
@@ -105,30 +114,26 @@ Se `SeedAdmin:Senha` estiver ausente ou vazia, a API sobe normalmente e registra
 
 ## Autenticação e autorização
 
-Perfis disponíveis:
-
 | Role | Origem | Permissões |
 |------|--------|------------|
 | **User** | Cadastro público (`POST /api/usuarios`) | CRUD de veículos |
-| **Admin** | Seed em Development (quando a senha estiver configurada) | CRUD de veículos + consulta de usuários por ID |
+| **Admin** | Seed em Development (quando `SeedAdmin:Senha` estiver configurada) | CRUD de veículos + `GET /api/usuarios/{id}` |
 
-> **Observação:** por segurança, a consulta de usuários por ID é restrita ao perfil `Admin`. Usuários comuns podem realizar o CRUD de veículos, mas não consultar cadastros de usuários.
-
-O cadastro público cria exclusivamente usuários com role `User` e **não aceita** role no body. Ambos os perfis autenticados podem gerenciar veículos.
+O cadastro público cria exclusivamente usuários com perfil `User` e **não aceita** role no body. Qualquer usuário autenticado (`User` ou `Admin`) pode executar o CRUD de veículos; a consulta de usuários por ID é exclusiva do perfil `Admin`.
 
 ### Fluxo no Swagger
 
-1. Abra `http://localhost:5095/swagger`.
-2. Execute **POST `/api/usuarios`** para cadastrar um usuário comum (público; role `User`).
-3. Execute **POST `/api/auth/login`** com o mesmo login/senha.
-4. Copie o valor do campo `token` na resposta.
-5. Clique em **Authorize**, cole **apenas o token** (sem o prefixo `Bearer`) e confirme.
-6. Execute o CRUD de **`/api/veiculos`** (acessível a qualquer usuário autenticado).
-7. Tente **GET `/api/usuarios/{id}`** com o token de `User` e confira o retorno **403**.
-8. Faça login com o administrador (após configurar `SeedAdmin:Senha`), autorize com o novo token e execute **GET `/api/usuarios/{id}`** (esperado **200**).
+1. Inicie a API (`dotnet run --project src/VehicleManagement.WebApi --launch-profile http`).
+2. Abra o Swagger em `http://localhost:5095/swagger`.
+3. Execute **POST `/api/usuarios`** para cadastrar um usuário comum (perfil `User`).
+4. Execute **POST `/api/auth/login`** com o mesmo login/senha e copie o campo `token` da resposta.
+5. Clique em **Authorize**, cole **apenas o token** (sem o prefixo `Bearer` — o Swagger aplica automaticamente) e confirme.
+6. Execute o CRUD de **`/api/veiculos`** (qualquer autenticado).
+7. Com o token de `User`, tente **GET `/api/usuarios/{id}`** e confira o retorno **403**.
+8. Configure `SeedAdmin:Senha`, reinicie a API, faça login com o administrador, autorize com o novo token e execute **GET `/api/usuarios/{id}`** (esperado **200**).
 
-Endpoints públicos: cadastro de usuário e login.  
-Endpoints protegidos: consulta de usuário (somente Admin) e todo o CRUD de veículos (qualquer autenticado).
+Endpoints públicos: cadastro de usuário, login e health.  
+Endpoints protegidos: CRUD de veículos (qualquer autenticado) e consulta de usuário (somente Admin).
 
 ## Exemplos JSON
 
@@ -223,7 +228,7 @@ Os testes cobrem Domain, repositórios InMemory, Services, FluentValidation, see
 
 ## Persistência
 
-A aplicação utiliza **Entity Framework Core InMemory** para armazenamento dos dados durante a execução, sem necessidade de configuração de um banco de dados externo.
+Os dados são mantidos em memória durante a execução da API (EF Core InMemory). Não há banco externo a configurar; o estado é reiniciado a cada novo processo.
 
 ## Estrutura do repositório
 

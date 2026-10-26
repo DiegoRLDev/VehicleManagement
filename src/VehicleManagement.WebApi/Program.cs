@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using VehicleManagement.Application;
@@ -46,25 +47,28 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services
+    .AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.SigningKey),
+        "Jwt:SigningKey não configurada. Use User Secrets, variáveis de ambiente (Jwt__SigningKey) ou appsettings.")
+    .ValidateOnStart();
+
 builder.Services.Configure<SeedAdminOptions>(builder.Configuration.GetSection(SeedAdminOptions.SectionName));
-
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-    ?? throw new InvalidOperationException("Seção Jwt não configurada.");
-
-if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
-{
-    throw new InvalidOperationException(
-        "Jwt:SigningKey não configurada. Use User Secrets, variáveis de ambiente (Jwt__SigningKey) ou appsettings.");
-}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer();
+
+// Usa IOptions<JwtOptions> (mesma fonte do AuthService) para evitar divergência
+// entre chave de assinatura e de validação (ex.: User Secrets vs config de testes).
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((bearerOptions, jwtAccessor) =>
     {
-        options.RequireHttpsMetadata = false;
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters = new TokenValidationParameters
+        var jwtOptions = jwtAccessor.Value;
+        bearerOptions.RequireHttpsMetadata = false;
+        bearerOptions.MapInboundClaims = false;
+        bearerOptions.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
